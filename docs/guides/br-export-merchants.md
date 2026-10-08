@@ -34,18 +34,18 @@ A $500k/yr business loses ~$31,500.
 
 ```
 US customer → SlipPay USDC checkout → your Stellar wallet
-$1000  →  USDC 990 (after SlipPay 1%)  →  stays USDC until YOU choose to convert
+$1000  →  USDC 970.30 (after SlipPay 2.97%)  →  stays USDC until YOU choose to convert
 ```
 
 Per-invoice leakage:
 
 | layer | rate | $1,000 invoice |
 |---|---|---|
-| SlipPay platform fee | 1% | $10 |
+| SlipPay platform fee | 2.97% (297 bp default) | $29.70 |
 | Stellar tx fee | $0.0001 | <$0.01 |
 | FX spread | 0% (USDC stays USDC) | $0 |
 | IOF | 0% (no FX yet) | $0 |
-| **total leakage** | **~1%** | **~$10** |
+| **total leakage** | **~2.97%** | **~$29.70** |
 
 You decide WHEN to convert USDC → BRL. If the dollar climbs vs real, you wait.
 If you need cash now, convert via your preferred on-ramp. SlipPay doesn't
@@ -175,7 +175,7 @@ USD payments. Here's the realistic compare-and-contrast:
 | Setup cost | $500 + ~$300/yr Delaware franchise tax + ~$200/mo bookkeeping | $0 |
 | Setup time | 2–4 weeks | 5 minutes |
 | Bank account | Mercury (US) | none needed (Stellar wallet) |
-| Per-invoice fee | 2.9% + $0.30 (US cards) or 4.4% (international) | 1% |
+| Per-invoice fee | 2.9% + $0.30 (US cards) or 4.4% (international) | 2.97% (297 bp default) |
 | FX to BRL when you withdraw | bank wire fee ($25-50) + spread (1-2%) | your choice; can stay USDC |
 | Tax overhead | annual US LLC filing + IRS 5472 + Brazilian PJ tax | Brazilian PJ tax only |
 | Incident scope | Stripe can freeze account | merchant holds keys |
@@ -194,7 +194,7 @@ better when:
 
 - Your customers are crypto-comfortable (often the case for SaaS to other
   startups, AI companies, infra tools)
-- You want the 5% margin back per invoice
+- You want the ~3.3% margin back per invoice (saving ~$33 on a $1,000 invoice vs ~6.3% Stripe/bank friction)
 - You want to hold USDC as a dollar hedge
 - You want zero recurring infrastructure cost (no LLC, no monthly bookkeeping
   for a US entity)
@@ -207,7 +207,7 @@ recurring SaaS subscriptions. Each invoice lets you choose.
 
 Some customers will hesitate at "pay in USDC". Here's what helps:
 
-1. **Frame it as a discount**: "Pay via SlipPay and we'll take 4% off the
+1. **Frame it as a discount**: "Pay via SlipPay and we'll take 2% off the
    invoice." You're sharing the savings; everyone wins.
 2. **Show them the wallet flow**: 90 seconds to install Freighter +
    90 seconds to fund it from Coinbase. Shorter than ACH setup.
@@ -235,12 +235,13 @@ crypto trading), which is the lowest tax bracket. Confirm with your CPA.
 
 ## Falsifiable expectations
 
-- Per-invoice savings vs Stripe: should be **5–6%** consistently across
-  invoices in the $100–$10,000 range.
-- Below 4% savings: something is wrong with the comparison (you're not
+- Per-invoice savings vs Stripe: should be **~3.3%** (3–3.5%) consistently across
+  invoices in the $100–$10,000 range (saving ~$33 per $1,000 invoice compared to
+  Stripe's 6.3% combined card + FX + IOF friction).
+- Below 2.5% savings: something is wrong with the comparison (you're not
   charging international card rate, or you're double-counting some fee).
-- Above 7% savings: you're including FX volatility that may swing back;
-  realistic claim is 5-6%.
+- Above 4.5% savings: you're including FX volatility that may swing back;
+  realistic claim is ~3.3%.
 
 ## Next steps
 
