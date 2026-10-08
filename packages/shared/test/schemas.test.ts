@@ -4,6 +4,7 @@ import {
   CreateOrderInputSchema,
   UsdcAmountSchema,
   OrderStatusSchema,
+  LimitQuerySchema,
 } from "../src/index.ts";
 
 describe("CreateMerchantInputSchema", () => {
@@ -95,5 +96,39 @@ describe("OrderStatusSchema", () => {
     for (const s of ["pending","paid","underpaid","expired","cancelled","dead"]) {
       expect(OrderStatusSchema.parse(s)).toBe(s);
     }
+  });
+});
+
+describe("LimitQuerySchema", () => {
+  it("defaults to 50 when undefined", () => {
+    expect(LimitQuerySchema.parse(undefined)).toBe(50);
+  });
+
+  it("parses valid positive integer within 1..200", () => {
+    expect(LimitQuerySchema.parse("1")).toBe(1);
+    expect(LimitQuerySchema.parse("50")).toBe(50);
+    expect(LimitQuerySchema.parse("200")).toBe(200);
+  });
+
+  it("caps values > 200 at 200", () => {
+    expect(LimitQuerySchema.parse("250")).toBe(200);
+    expect(LimitQuerySchema.parse("1000")).toBe(200);
+  });
+
+  it("rejects non-numeric values", () => {
+    expect(() => LimitQuerySchema.parse("abc")).toThrow();
+    expect(() => LimitQuerySchema.parse("12a")).toThrow();
+    expect(() => LimitQuerySchema.parse("")).toThrow();
+    expect(() => LimitQuerySchema.parse(" ")).toThrow();
+  });
+
+  it("rejects negative numbers and zero", () => {
+    expect(() => LimitQuerySchema.parse("-1")).toThrow();
+    expect(() => LimitQuerySchema.parse("0")).toThrow();
+  });
+
+  it("rejects floating point decimals", () => {
+    expect(() => LimitQuerySchema.parse("10.5")).toThrow();
+    expect(() => LimitQuerySchema.parse("50.0")).toThrow();
   });
 });

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "supabase";
 import {
   CreateSubscriptionInputSchema,
   UpdateSubscriptionInputSchema,
+  LimitQuerySchema,
   ORDER_DEFAULT_EXPIRY_MINUTES,
   DEFAULT_PLATFORM_FEE_BP,
 } from "@slippay/shared";
@@ -63,7 +64,7 @@ r.get("/", requireApiKeyOrJwt, async (c) => {
   const merchant = c.get("merchant");
   const sb = c.get("supabase");
   const status = c.req.query("status");
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "50"), 200);
+  const limit = LimitQuerySchema.parse(c.req.query("limit"));
   let q = sb.from("subscriptions").select("*").eq("merchant_id", merchant.id)
     .order("created_at", { ascending: false }).limit(limit);
   if (status) q = q.eq("status", status);

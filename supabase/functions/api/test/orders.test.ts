@@ -103,6 +103,29 @@ Deno.test("GET /v1/orders lists own orders only", { sanitizeOps: false, sanitize
   assertEquals(body.orders[0].brl_amount, "10.00");
 });
 
+Deno.test("GET /v1/orders rejects invalid limit with 400 validation error", { sanitizeOps: false, sanitizeResources: false }, async () => {
+  const m = await createMerchant();
+  for (const invalid of ["abc", "-1", "0"]) {
+    const res = await req(`/v1/orders?limit=${invalid}`, {
+      headers: { authorization: `Bearer ${m.api_key}` },
+    });
+    assertEquals(res.status, 400);
+    const body = await res.json();
+    assertEquals(body.error, "validation_error");
+  }
+});
+
+Deno.test("GET /v1/orders accepts limit=250 and caps at 200", { sanitizeOps: false, sanitizeResources: false }, async () => {
+  const m = await createMerchant();
+  const res = await req("/v1/orders?limit=250", {
+    headers: { authorization: `Bearer ${m.api_key}` },
+  });
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assert(Array.isArray(body.orders));
+  assert(body.orders.length <= 200);
+});
+
 Deno.test("GET /v1/orders/:id requires signed token (audit-004 C2)", { sanitizeOps: false, sanitizeResources: false }, async () => {
   const m = await createMerchant();
   const c = await req("/v1/orders", { method: "POST",
