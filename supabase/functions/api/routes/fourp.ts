@@ -129,11 +129,16 @@ r.post("/quote", async (c) => {
     // client can show the user the exact dollar rate AND the fee transparently.
     const map = q.quote ?? {};
     const gross: Record<string, number> = {};
+    const netBps = 10_000 - marginBps;
     for (const k of Object.keys(map)) {
       gross[k] = map[k].price;
+      // Integer basis points: net multiplier (10_000 - marginBps).
+      // Explicit rounding direction: round down (Math.floor) to native USDC precision (6 decimals),
+      // in the platform's disfavour, eliminating 8-decimal toFixed string truncation.
+      const net = Math.floor(gross[k] * netBps * 1e2) / 1e6;
       map[k] = {
         ...map[k],
-        price: Number((gross[k] * (1 - marginBps / 10_000)).toFixed(8)),
+        price: net,
       };
     }
     return c.json({ quote: q, gross, marginBps });
