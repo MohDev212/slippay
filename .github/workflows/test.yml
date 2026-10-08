@@ -1,66 +1,50 @@
 name: test
-
 on:
-  pull_request:
+  pull_request: null
   push:
-    branches: [main]
-
+    branches:
+    - main
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
-      - name: Build shared (consumed by web + listener)
-        run: pnpm --filter @slippay/shared build
-
-      - name: Lint
-        run: pnpm -r lint
-
-      - name: Workspace tests (shared, web, listener)
-        run: pnpm -r test
-
-      - name: Start local Supabase stack
-        run: supabase start
-
-      - name: API edge function tests (deno)
-        env:
-          SUPABASE_URL: http://127.0.0.1:54321
-          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
-          SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
-          RATE_BRL_USDC: "5.80"
-        run: |
-          cd supabase/functions/api
-          deno test --allow-all --no-check --env-file=../../../.env.local.ci test/ || \
-            deno test --allow-all --no-check test/
-
-      - name: Build web
-        run: pnpm --filter @slippay/web build
-
-      - name: Build listener
-        run: pnpm --filter @slippay/listener build
-
-      - name: Stop Supabase
-        if: always()
-        run: supabase stop || true
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+    - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+      with:
+        version: 9.12.0
+    - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a
+      with:
+        node-version: 22
+        cache: pnpm
+    - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+      with:
+        deno-version: v2.x
+    - uses: supabase/setup-cli@b60b5899c73b63a2d2d651b1e90db8d4c9392f51
+      with:
+        version: latest
+    - name: Install
+      run: pnpm install --frozen-lockfile
+    - name: Build shared (consumed by web + listener)
+      run: pnpm --filter @slippay/shared build
+    - name: Lint
+      run: pnpm -r lint
+    - name: Workspace tests (shared, web, listener)
+      run: pnpm -r test
+    - name: Start local Supabase stack
+      run: supabase start
+    - name: API edge function tests (deno)
+      env:
+        SUPABASE_URL: http://127.0.0.1:54321
+        SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+        SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+        RATE_BRL_USDC: '5.80'
+      run: "cd supabase/functions/api\ndeno test --allow-all --no-check --env-file=../../../.env.local.ci\
+        \ test/ || \\\n  deno test --allow-all --no-check test/\n"
+    - name: Build web
+      run: pnpm --filter @slippay/web build
+    - name: Build listener
+      run: pnpm --filter @slippay/listener build
+    - name: Stop Supabase
+      if: always()
+      run: supabase stop || true

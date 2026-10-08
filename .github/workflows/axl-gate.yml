@@ -1,48 +1,39 @@
 name: axl-gate
-
-# Forcing function: the AXL proof must stay coupled to the deployed bound.
-# Fails the build if the agent spending policy stops proving its bound, if the
-# checked-in certificate drifts from the policy, or if the on-chain contract's
-# enforced multiplier diverges from the certified one. See
-# axl-compiler/scripts/axl-gate.sh.
-
 on:
   pull_request:
     paths:
-      - 'axl-compiler/**'
-      - 'contracts/smart-wallet/src/lib.rs'
-      - '.github/workflows/axl-gate.yml'
+    - axl-compiler/**
+    - contracts/smart-wallet/src/lib.rs
+    - .github/workflows/axl-gate.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'axl-compiler/**'
-      - 'contracts/smart-wallet/src/lib.rs'
-      - '.github/workflows/axl-gate.yml'
-
+    - axl-compiler/**
+    - contracts/smart-wallet/src/lib.rs
+    - .github/workflows/axl-gate.yml
 jobs:
   axl-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+    - name: Install z3 (SMT solver — the proof is discharged, not trusted)
+      run: sudo apt-get update && sudo apt-get install -y z3
+    - name: Cache cargo
+      uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57
+      with:
+        path: '~/.cargo/registry
 
-      - name: Install z3 (SMT solver — the proof is discharged, not trusted)
-        run: sudo apt-get update && sudo apt-get install -y z3
+          ~/.cargo/git
 
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            axl-compiler/target
-          key: axl-cargo-${{ runner.os }}-${{ hashFiles('axl-compiler/Cargo.toml') }}
+          axl-compiler/target
 
-      - name: Build axlc (release)
-        run: cd axl-compiler && cargo build --release
-
-      - name: Compiler tests (parse, SMT, discharge, certify, drift)
-        run: cd axl-compiler && cargo test --release
-
-      - name: Conformance gate (proof == policy == certificate == on-chain bound)
-        run: axl-compiler/scripts/axl-gate.sh
+          '
+        key: axl-cargo-${{ runner.os }}-${{ hashFiles('axl-compiler/Cargo.toml') }}
+    - name: Build axlc (release)
+      run: cd axl-compiler && cargo build --release
+    - name: Compiler tests (parse, SMT, discharge, certify, drift)
+      run: cd axl-compiler && cargo test --release
+    - name: Conformance gate (proof == policy == certificate == on-chain bound)
+      run: axl-compiler/scripts/axl-gate.sh
