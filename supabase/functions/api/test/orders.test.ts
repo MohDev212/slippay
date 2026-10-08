@@ -46,6 +46,46 @@ Deno.test("POST /v1/orders rejects invalid amount", { sanitizeOps: false, saniti
   assertEquals(res.status, 400);
 });
 
+Deno.test("POST /v1/orders with valid usd_amount sets usdc_amount equal to input without toFixed coercion", { sanitizeOps: false, sanitizeResources: false }, async () => {
+  const m = await createMerchant();
+  const res = await req("/v1/orders", {
+    method: "POST",
+    headers: { authorization: `Bearer ${m.api_key}`, "content-type": "application/json" },
+    body: JSON.stringify({ usd_amount: "10.50", external_ref: "cart_usd" }),
+  });
+  assertEquals(res.status, 201);
+  const body = await res.json();
+  assertEquals(body.order.usd_amount, "10.50");
+  assertEquals(body.order.usdc_amount, "10.50");
+});
+
+Deno.test("POST /v1/orders rejects over-precise or non-positive usd_amount with 400", { sanitizeOps: false, sanitizeResources: false }, async () => {
+  const m = await createMerchant();
+  // Over-precise (> 7 decimals)
+  const resOver = await req("/v1/orders", {
+    method: "POST",
+    headers: { authorization: `Bearer ${m.api_key}`, "content-type": "application/json" },
+    body: JSON.stringify({ usd_amount: "10.12345678" }),
+  });
+  assertEquals(resOver.status, 400);
+
+  // Non-positive (0.00)
+  const resZero = await req("/v1/orders", {
+    method: "POST",
+    headers: { authorization: `Bearer ${m.api_key}`, "content-type": "application/json" },
+    body: JSON.stringify({ usd_amount: "0.00" }),
+  });
+  assertEquals(resZero.status, 400);
+
+  // Non-positive (-1.00)
+  const resNeg = await req("/v1/orders", {
+    method: "POST",
+    headers: { authorization: `Bearer ${m.api_key}`, "content-type": "application/json" },
+    body: JSON.stringify({ usd_amount: "-1.00" }),
+  });
+  assertEquals(resNeg.status, 400);
+});
+
 Deno.test("GET /v1/orders lists own orders only", { sanitizeOps: false, sanitizeResources: false }, async () => {
   const a = await createMerchant();
   const b = await createMerchant();

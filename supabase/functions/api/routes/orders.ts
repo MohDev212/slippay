@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { SupabaseClient } from "supabase";
-import { CreateOrderInputSchema, ORDER_DEFAULT_EXPIRY_MINUTES, DEFAULT_PLATFORM_FEE_BP } from "@slippay/shared";
+import { CreateOrderInputSchema, UsdcAmountSchema, ORDER_DEFAULT_EXPIRY_MINUTES, DEFAULT_PLATFORM_FEE_BP } from "@slippay/shared";
 import { requireApiKey } from "../middleware/auth_apikey.ts";
 import { requireApiKeyOrJwt } from "../middleware/auth_any.ts";
 import { generateMemo } from "../lib/memo.ts";
@@ -34,12 +34,19 @@ r.post("/", requireApiKey, async (c) => {
 
   if (input.usd_amount) {
     usd_amount = input.usd_amount;
-    usdc = parseFloat(input.usd_amount).toFixed(7);
+    usdc = input.usd_amount;
   } else {
     brl_amount = input.brl_amount!;
     const rate = await getBrlPerUsdc();
     usdc = (parseFloat(input.brl_amount!) / rate).toFixed(7);
     rate_brl_usdc = rate.toFixed(7);
+  }
+
+  try {
+    usdc = UsdcAmountSchema.parse(usdc);
+  } catch (e: unknown) {
+    const issues = (e as { issues?: unknown }).issues ?? (e as { errors?: unknown }).errors ?? [];
+    return c.json({ error: "validation_error", issues }, 400);
   }
 
   const memo = await generateMemo();
