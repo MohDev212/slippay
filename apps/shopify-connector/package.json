@@ -6,6 +6,7 @@
   "description": "SlipPay × Shopify Payments App connector (maps Shopify payment sessions onto SlipPay's API).",
   "scripts": {
     "dev": "node src/index.mjs",
-    "start": "node src/index.mjs"
+    "start": "node src/index.mjs",
+    "test": "node test/hmac.test.mjs && node test/e2e.mjs"
   }
 }

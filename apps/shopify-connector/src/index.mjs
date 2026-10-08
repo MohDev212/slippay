@@ -76,7 +76,7 @@ async function readRawBody(req) {
 const parse = (buf) => { try { return JSON.parse(buf.toString("utf8")); } catch { return {}; } };
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-function safeEqual(a, b) {
+export function safeEqual(a, b) {
   const ba = Buffer.from(a), bb = Buffer.from(b);
   if (ba.length !== bb.length) { timingSafeEqual(ba, ba); return false; }
   return timingSafeEqual(ba, bb);
@@ -85,9 +85,10 @@ function safeEqual(a, b) {
 // Shopify webhook HMAC: base64(HMAC-SHA256(secret, raw body)).
 // OAuth-app webhooks are signed with the app secret; legacy custom-app
 // webhooks with the custom app's API secret key. Accept either.
-function verifyShopifyWebhookHmac(rawBody, header) {
+export function verifyShopifyWebhookHmac(rawBody, header, secrets = [APP_SECRET, LEGACY_WEBHOOK_SECRET]) {
   if (!header) return false;
-  for (const secret of [APP_SECRET, LEGACY_WEBHOOK_SECRET]) {
+  const list = Array.isArray(secrets) ? secrets : [secrets];
+  for (const secret of list) {
     if (!secret) continue;
     const digest = createHmac("sha256", secret).update(rawBody).digest("base64");
     if (safeEqual(digest, header)) return true;
@@ -97,8 +98,8 @@ function verifyShopifyWebhookHmac(rawBody, header) {
 
 // Shopify OAuth/App-URL query HMAC: hex HMAC-SHA256 over the sorted query
 // string (minus hmac/signature), keyed with the app secret.
-function verifyShopifyQueryHmac(params) {
-  if (!APP_SECRET) return false;
+export function verifyShopifyQueryHmac(params, secret = APP_SECRET) {
+  if (!secret) return false;
   const hmac = params.get("hmac");
   if (!hmac) return false;
   const msg = [...params.entries()]
@@ -106,12 +107,12 @@ function verifyShopifyQueryHmac(params) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
     .join("&");
-  const digest = createHmac("sha256", APP_SECRET).update(msg).digest("hex");
+  const digest = createHmac("sha256", secret).update(msg).digest("hex");
   return safeEqual(digest, hmac);
 }
 
 // SlipPay webhook signature: "t=<sec>,v1=<hex hmac over `${t}.${body}`>".
-function verifySlippaySig(rawBody, header, secrets) {
+export function verifySlippaySig(rawBody, header, secrets) {
   if (!header) return false;
   const parts = Object.fromEntries(header.split(",").map(p => p.split("=")));
   const t = Number(parts.t);
