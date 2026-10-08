@@ -4,6 +4,7 @@ import {
   CreateSubscriptionInputSchema,
   UpdateSubscriptionInputSchema,
   ORDER_DEFAULT_EXPIRY_MINUTES,
+  DEFAULT_PLATFORM_FEE_BP,
 } from "@slippay/shared";
 import { requireApiKey } from "../middleware/auth_apikey.ts";
 import { requireApiKeyOrJwt } from "../middleware/auth_any.ts";
@@ -155,6 +156,10 @@ r.post("/:id/charge", requireApiKey, async (c) => {
   const expiresAt = new Date(Date.now() + ORDER_DEFAULT_EXPIRY_MINUTES * 60_000).toISOString();
   const nextChargeAt = new Date(Date.now() + sub.period_seconds * 1000).toISOString();
 
+  const feeBp = Number((merchant as { platform_fee_bp?: number }).platform_fee_bp ?? DEFAULT_PLATFORM_FEE_BP);
+  const grossUsdc = parseFloat(usdc);
+  const feeUsdc = (grossUsdc * feeBp / 10_000).toFixed(7);
+
   const { data: order, error: orderErr } = await sb.from("orders").insert({
     merchant_id: merchant.id,
     // Pin the consented payout address at charge time (recipient-drift defense).
@@ -166,6 +171,8 @@ r.post("/:id/charge", requireApiKey, async (c) => {
     rate_brl_usdc: rate.toFixed(7),
     memo,
     expires_at: expiresAt,
+    platform_fee_bp: feeBp,
+    fee_usdc: feeUsdc,
   }).select("*").single();
   if (orderErr) { const m = mapDbError(orderErr); return c.json({ error: m.code }, m.status as 400 | 409); }
 

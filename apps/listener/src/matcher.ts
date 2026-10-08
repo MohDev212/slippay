@@ -16,7 +16,7 @@ export interface OrderForMatch {
   memo: string;
   usdc_amount: string;
   merchant_stellar_address: string;
-  platform_fee_bp: number;
+  platform_fee_bp?: number | null;
 }
 
 export type MatchOutcome =
@@ -54,7 +54,14 @@ export function matchPaymentToOrder(
   } catch {
     return { outcome: "ignore", reason: "amount_parse" };
   }
-  if (order.platform_fee_bp < 0 || order.platform_fee_bp >= 10_000) {
+  if (
+    order.platform_fee_bp === null ||
+    order.platform_fee_bp === undefined ||
+    typeof order.platform_fee_bp !== "number" ||
+    Number.isNaN(order.platform_fee_bp) ||
+    order.platform_fee_bp < 0 ||
+    order.platform_fee_bp >= 10_000
+  ) {
     return { outcome: "ignore", reason: "fee_bp_invalid" };
   }
   // Floor division here is conservative: integer division truncates toward

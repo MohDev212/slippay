@@ -82,6 +82,21 @@ describe("matchPaymentToOrder", () => {
     const o = { ...order, platform_fee_bp: 10_000 };
     expect(matchPaymentToOrder(validEvent, o, "TESTNET").outcome).toBe("ignore");
   });
+
+  it("rejects null fee_bp as ignore instead of treating as zero fee", () => {
+    const o = { ...order, platform_fee_bp: null };
+    expect(matchPaymentToOrder(validEvent, o, "TESTNET")).toEqual({ outcome: "ignore", reason: "fee_bp_invalid" });
+  });
+
+  it("rejects undefined/missing fee_bp as ignore", () => {
+    const o = { ...order, platform_fee_bp: undefined };
+    expect(matchPaymentToOrder(validEvent, o, "TESTNET")).toEqual({ outcome: "ignore", reason: "fee_bp_invalid" });
+  });
+
+  it("rejects negative fee_bp as ignore", () => {
+    const o = { ...order, platform_fee_bp: -1 };
+    expect(matchPaymentToOrder(validEvent, o, "TESTNET")).toEqual({ outcome: "ignore", reason: "fee_bp_invalid" });
+  });
 });
 
 describe("stellarToStroops · stroopsToStellar", () => {

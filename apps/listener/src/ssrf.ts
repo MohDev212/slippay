@@ -186,7 +186,7 @@ export async function validateWebhookUrl(
 export function pinnedDispatcher(target: ValidatedTarget): Dispatcher {
   return new Agent({
     connect: {
-      lookup: (_hostname: string, opts: unknown, cb: (err: Error | null, address: unknown, family?: number) => void) => {
+      lookup: (_hostname: string, opts: unknown, cb: (err: Error | null, address: any, family?: number) => void) => {
         // undici may call with { all: true } and read res[0].address; answering
         // (ip, family) there yields address=undefined and every delivery dies
         // with "TypeError: fetch failed" / ERR_INVALID_IP_ADDRESS (2026-07-14).

@@ -185,3 +185,82 @@ Deno.test("orders.fee_usdc constraint rejects negative values and enforces NOT N
   assertEquals(parseFloat(okData.fee_usdc), 0.0168965);
 });
 
+Deno.test("orders.platform_fee_bp constraint rejects out-of-bounds values, enforces NOT NULL, and defaults to 297", { sanitizeOps: false, sanitizeResources: false }, async () => {
+  const sb = serviceClient();
+  const m = await createMerchant();
+
+  // 1. Rejects negative platform_fee_bp (< 0)
+  const { error: negErr } = await sb.from("orders").insert({
+    merchant_id: m.merchant.id,
+    brl_amount: "10.00",
+    usdc_amount: "1.7241379",
+    rate_brl_usdc: "5.80",
+    memo: "m_fee_neg_" + crypto.randomUUID().replace(/-/g, "").slice(0, 40),
+    fee_usdc: "0.0168965",
+    platform_fee_bp: -1,
+  });
+  assert(negErr !== null, "insert with negative platform_fee_bp must be rejected");
+
+  // 2. Rejects platform_fee_bp > 1000 (> 10%)
+  const { error: highErr } = await sb.from("orders").insert({
+    merchant_id: m.merchant.id,
+    brl_amount: "10.00",
+    usdc_amount: "1.7241379",
+    rate_brl_usdc: "5.80",
+    memo: "m_fee_high_" + crypto.randomUUID().replace(/-/g, "").slice(0, 40),
+    fee_usdc: "0.0168965",
+    platform_fee_bp: 1001,
+  });
+  assert(highErr !== null, "insert with platform_fee_bp > 1000 must be rejected");
+
+  // 3. Rejects NULL platform_fee_bp
+  const { error: nullErr } = await sb.from("orders").insert({
+    merchant_id: m.merchant.id,
+    brl_amount: "10.00",
+    usdc_amount: "1.7241379",
+    rate_brl_usdc: "5.80",
+    memo: "m_fee_null_" + crypto.randomUUID().replace(/-/g, "").slice(0, 40),
+    fee_usdc: "0.0168965",
+    platform_fee_bp: null as any,
+  });
+  assert(nullErr !== null, "insert with null platform_fee_bp must be rejected");
+
+  // 4. Default 297 applies when omitted
+  const { data: defData, error: defErr } = await sb.from("orders").insert({
+    merchant_id: m.merchant.id,
+    brl_amount: "10.00",
+    usdc_amount: "1.7241379",
+    rate_brl_usdc: "5.80",
+    memo: "m_fee_def_" + crypto.randomUUID().replace(/-/g, "").slice(0, 40),
+    fee_usdc: "0.0168965",
+  }).select("*").single();
+  assert(defErr === null, "insert without explicit platform_fee_bp must succeed");
+  assertEquals(defData.platform_fee_bp, 297);
+});
+
+Deno.test("GET /v1/x402/:slug sets platform_fee_bp and fee_usdc on order insert", { sanitizeOps: false, sanitizeResources: false }, async () => {
+  const sb = serviceClient();
+  const m = await createMerchant();
+  const slug = "test-fee-" + crypto.randomUUID().slice(0, 8);
+  const { data: resData, error: resErr } = await sb.from("x402_resources").insert({
+    merchant_id: m.merchant.id,
+    slug,
+    usd_amount: "5.0000000",
+    inline_content: "hello protected content",
+    inline_mime: "text/plain",
+  }).select("*").single();
+  assert(resErr === null);
+
+  const res = await req(`/v1/x402/${slug}`, { method: "GET" });
+  assertEquals(res.status, 402);
+
+  const { data: orderData, error: ordErr } = await sb.from("orders")
+    .select("platform_fee_bp, fee_usdc, usdc_amount")
+    .eq("x402_resource_id", resData.id)
+    .single();
+  assert(ordErr === null);
+  assertEquals(orderData.platform_fee_bp, 297);
+  assertEquals(orderData.fee_usdc, "0.1485000"); // 5.0 * 297 / 10000
+});
+
+
