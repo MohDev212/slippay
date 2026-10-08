@@ -7,6 +7,8 @@
 // Token is `?t=<base64url(hmac_sha256(secret, order_id))>`. Constant-time
 // compare on verify.
 
+import { b64url, b64urlDecode } from "@slippay/shared";
+
 const ENC = new TextEncoder();
 const CACHE: Record<string, CryptoKey> = {};
 
@@ -27,22 +29,6 @@ async function getKey(): Promise<CryptoKey> {
   );
   CACHE[secret] = key;
   return key;
-}
-
-function b64url(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-}
-
-function b64urlDecode(s: string): Uint8Array {
-  const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
-  const std = (s + pad).replaceAll("-", "+").replaceAll("_", "/");
-  const bin = atob(std);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
 }
 
 export async function signCheckoutToken(orderId: string): Promise<string> {

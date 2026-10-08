@@ -19,6 +19,7 @@
 // auth entry attached, then POSTs the XDR here; we validate, sign, submit.
 
 import { Hono } from "hono";
+import { hexToBuf } from "@slippay/shared";
 import { rateLimit } from "../middleware/rate_limit.ts";
 import {
   Address, Asset, BASE_FEE, Keypair, Networks, Operation,
@@ -77,13 +78,7 @@ r.get("/info", (c) => {
 const FUND_AMOUNT = Deno.env.get("RELAYER_FUND_AMOUNT") ?? "2000000"; // 0.2 XLM
 const MAX_ABS = Deno.env.get("RELAYER_MAX_ABS") ?? "1000000000";
 
-function hexToBytes(h: string): Uint8Array {
-  const clean = h.startsWith("0x") ? h.slice(2) : h;
-  if (clean.length % 2 !== 0) throw new Error("odd hex length");
-  const out = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
+const hexToBytes = hexToBuf;
 async function sha256(b: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", b as BufferSource));
 }

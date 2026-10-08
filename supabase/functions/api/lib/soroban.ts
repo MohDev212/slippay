@@ -7,6 +7,7 @@ import {
   Address, BASE_FEE, Contract, Networks, Operation,
   rpc as SorobanRpc, TransactionBuilder, nativeToScVal, xdr,
 } from "npm:@stellar/stellar-sdk@13";
+import { hexToBuf } from "@slippay/shared";
 
 export interface SorobanConfig {
   network: "testnet" | "mainnet";
@@ -74,7 +75,7 @@ export async function buildChargeTransaction(
 
   // 2. Build the contract.charge(id) operation
   const contract = new Contract(args.contractId);
-  const nonceBytes = hexToUint8Array(args.subscriptionNonce);
+  const nonceBytes = hexToBuf(args.subscriptionNonce);
   if (nonceBytes.length !== 32) {
     throw new Error(`subscription_nonce must be 32 bytes (64 hex chars); got ${nonceBytes.length}`);
   }
@@ -132,14 +133,4 @@ export async function buildChargeTransaction(
     next_due_at: nextDueAt,
     simulation_ok: true,
   };
-}
-
-function hexToUint8Array(hex: string): Uint8Array {
-  const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
-  if (clean.length % 2 !== 0) throw new Error("hex length must be even");
-  const out = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = parseInt(clean.substr(i * 2, 2), 16);
-  }
-  return out;
 }
