@@ -26,7 +26,7 @@
 import { Hono, type Context } from "hono";
 import type { SupabaseClient } from "supabase";
 import { z } from "zod";
-import { NETWORK, ORDER_DEFAULT_EXPIRY_MINUTES } from "@slippay/shared";
+import { NETWORK, ORDER_DEFAULT_EXPIRY_MINUTES, DEFAULT_PLATFORM_FEE_BP } from "@slippay/shared";
 import { requireApiKey } from "../middleware/auth_apikey.ts";
 import { rateLimit } from "../middleware/rate_limit.ts";
 import { serviceClient } from "../lib/supabase.ts";
@@ -134,12 +134,12 @@ r.get("/:slug", async (c) => {
 
   // Resolve the resource. 404 if unknown.
   const { data: res, error: resErr } = await sb.from("x402_resources")
-    .select("id, merchant_id, usd_amount, inline_content, inline_mime, redirect_url, description, merchants ( stellar_address, network )")
+    .select("id, merchant_id, usd_amount, inline_content, inline_mime, redirect_url, description, merchants ( stellar_address, network, platform_fee_bp )")
     .eq("slug", slug)
     .maybeSingle();
   if (resErr || !res) return c.json({ error: "resource_not_found" }, 404);
 
-  const merchantRel = (res as any).merchants as { stellar_address?: string; network?: string };
+  const merchantRel = (res as any).merchants as { stellar_address?: string; network?: string; platform_fee_bp?: number };
   if (!merchantRel?.stellar_address) {
     return c.json({ error: "merchant_not_configured" }, 503);
   }
@@ -201,6 +201,10 @@ r.get("/:slug", async (c) => {
       );
     }
 
+    const feeBp = Number(merchantRel?.platform_fee_bp ?? DEFAULT_PLATFORM_FEE_BP);
+    const grossUsdc = parseFloat(res.usd_amount);
+    const feeUsdc = (grossUsdc * feeBp / 10_000).toFixed(7);
+
     memo = await generateMemo();
     const expiresAt = new Date(Date.now() + ORDER_DEFAULT_EXPIRY_MINUTES * 60_000).toISOString();
     const { error: ordErr } = await sb.from("orders").insert({
@@ -213,6 +217,8 @@ r.get("/:slug", async (c) => {
       usdc_amount: res.usd_amount, // 1:1 with USD by Slippay convention
       memo,
       expires_at: expiresAt,
+      platform_fee_bp: feeBp,
+      fee_usdc: feeUsdc,
       x402_resource_id: res.id,
       x402_client_id: clientId,
     });

@@ -105,3 +105,43 @@ Deno.test("POST /v1/orders/:id/cancel marks status cancelled", { sanitizeOps: fa
   const body = await res.json();
   assertEquals(body.order.status, "cancelled");
 });
+
+Deno.test("orders.fee_usdc constraint rejects negative values and enforces NOT NULL", { sanitizeOps: false, sanitizeResources: false }, async () => {
+  const sb = serviceClient();
+  const m = await createMerchant();
+
+  // 1. Rejects negative fee_usdc
+  const { error: negErr } = await sb.from("orders").insert({
+    merchant_id: m.merchant.id,
+    brl_amount: "10.00",
+    usdc_amount: "1.7241379",
+    rate_brl_usdc: "5.80",
+    memo: "m_neg_" + crypto.randomUUID().replace(/-/g, "").slice(0, 50),
+    fee_usdc: -1,
+  });
+  assert(negErr !== null, "insert with negative fee_usdc must be rejected");
+
+  // 2. Rejects NULL fee_usdc
+  const { error: nullErr } = await sb.from("orders").insert({
+    merchant_id: m.merchant.id,
+    brl_amount: "10.00",
+    usdc_amount: "1.7241379",
+    rate_brl_usdc: "5.80",
+    memo: "m_null_" + crypto.randomUUID().replace(/-/g, "").slice(0, 50),
+    fee_usdc: null as any,
+  });
+  assert(nullErr !== null, "insert with null fee_usdc must be rejected");
+
+  // 3. Valid insert succeeds
+  const { data: okData, error: okErr } = await sb.from("orders").insert({
+    merchant_id: m.merchant.id,
+    brl_amount: "10.00",
+    usdc_amount: "1.7241379",
+    rate_brl_usdc: "5.80",
+    memo: "m_ok_" + crypto.randomUUID().replace(/-/g, "").slice(0, 50),
+    fee_usdc: "0.0168965",
+  }).select("*").single();
+  assert(okErr === null, "valid insert must succeed");
+  assertEquals(parseFloat(okData.fee_usdc), 0.0168965);
+});
+
