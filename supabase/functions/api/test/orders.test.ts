@@ -5,8 +5,10 @@ import { serviceClient } from "../lib/supabase.ts";
 async function createMerchant() {
   const sb = serviceClient();
   const email = `m-${crypto.randomUUID()}@slippay.test`;
-  const { data: u } = await sb.auth.admin.createUser({ email, email_confirm: true, password: "p" });
-  const { data: s } = await sb.auth.signInWithPassword({ email, password: "p" });
+  const { data: u, error: errCreate } = await sb.auth.admin.createUser({ email, email_confirm: true, password: "test-password-1234" });
+  if (errCreate) throw errCreate;
+  const { data: s, error: errSign } = await sb.auth.signInWithPassword({ email, password: "test-password-1234" });
+  if (errSign) throw errSign;
   const create = await req("/v1/merchants", {
     method: "POST",
     headers: { authorization: `Bearer ${s.session!.access_token}`, "content-type": "application/json" },
