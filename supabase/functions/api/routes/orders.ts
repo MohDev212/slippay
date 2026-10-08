@@ -49,7 +49,7 @@ r.post("/", requireApiKey, async (c) => {
     return c.json({ error: "validation_error", issues }, 400);
   }
 
-  const memo = await generateMemo();
+  let memo = await generateMemo();
   const minutes = input.expires_in_minutes ?? ORDER_DEFAULT_EXPIRY_MINUTES;
   const expiresAt = new Date(Date.now() + minutes * 60_000).toISOString();
 
@@ -62,21 +62,28 @@ r.post("/", requireApiKey, async (c) => {
   const feeUsdc = (grossUsdc * feeBp / 10_000).toFixed(7);
   const netUsdc = (grossUsdc - parseFloat(feeUsdc)).toFixed(7);
 
-  const { data, error } = await sb.from("orders").insert({
+  const insertPayload = (m: string) => ({
     merchant_id: merchant.id,
-    // Pin the consented payout address at creation — a later merchant address
-    // rotation must not redirect this order's funds (recipient-drift defense).
     merchant_stellar_address: merchant.stellar_address ?? null,
     external_ref: input.external_ref ?? null,
     brl_amount,
     usd_amount,
     usdc_amount: usdc,
     rate_brl_usdc,
-    memo,
+    memo: m,
     expires_at: expiresAt,
     platform_fee_bp: feeBp,
     fee_usdc: feeUsdc,
-  }).select("*").single();
+  });
+
+  let insertRes = await sb.from("orders").insert(insertPayload(memo)).select("*").single();
+  // Audit #71: Explicit collision retry for unique memo constraint
+  if (insertRes.error && (insertRes.error as { code?: string }).code === "23505") {
+    memo = await generateMemo();
+    insertRes = await sb.from("orders").insert(insertPayload(memo)).select("*").single();
+  }
+
+  const { data, error } = insertRes;
   if (error) return c.json({ error: "create_failed" }, 400);
   const token = await signCheckoutToken(data.id as string);
 
