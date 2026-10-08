@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import { resolve } from "node:path";
+import { DEV_TUNNEL_HOSTS } from "@slippay/shared";
 
 // Allow Vite to resolve raw imports of the monorepo's top-level docs/ so the
 // /docs route can bundle every markdown file at build time.
@@ -34,6 +35,6 @@ export default defineConfig({
     fs: { allow: ["..", "../..", DOCS_ROOT] },
     // Allow dev tunnels (localtunnel/ngrok) to reach the dev server for the
     // mobile passkey e2e. Dev-only; these hosts are never used in prod builds.
-    allowedHosts: [".loca.lt", ".ngrok-free.app", ".ngrok.app", ".trycloudflare.com"],
+    allowedHosts: [...DEV_TUNNEL_HOSTS],
   },
 });

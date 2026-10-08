@@ -12,6 +12,7 @@ import metrics from "./routes/metrics.ts";
 import relayer from "./routes/relayer.ts";
 import ramp from "./routes/ramp.ts";
 import offramp from "./routes/offramp.ts";
+import { ALLOWED_ORIGINS_SET } from "@slippay/shared";
 import fourp from "./routes/fourp.ts";
 
 const api = new Hono().basePath("/api");
@@ -20,14 +21,8 @@ api.use("*", errorMiddleware);
 // app.slippay.cc / slippay.cc need access; everything else stays denied so
 // that the unauthenticated public endpoints (e.g. /v1/orders/:id?t=...) can't
 // be invoked from random origins.
-const ALLOWED_ORIGINS = new Set([
-  "https://app.slippay.cc",
-  "https://slippay.cc",
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-]);
 api.use("*", cors({
-  origin: (origin) => (origin && ALLOWED_ORIGINS.has(origin)) ? origin : "",
+  origin: (origin) => (origin && ALLOWED_ORIGINS_SET.has(origin)) ? origin : "",
   allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
   allowHeaders: ["authorization", "content-type"],
 }));
