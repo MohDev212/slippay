@@ -24,6 +24,8 @@ Deno.test("verifyApiKey accepts correct, rejects wrong (constant-time)", async (
   assertEquals(await verifyApiKey(plain.replace(/.$/, "Z"), hash), false);
 });
 
-Deno.test("prefixOf returns first 16 chars", () => {
-  assertEquals(prefixOf("sk_live_abcdefgh1234567890"), "sk_live_abcdefgh");
+Deno.test("prefixOf returns prefix plus 4 chars (12 chars total)", () => {
+  const prefix = prefixOf("sk_live_abcdefgh1234567890");
+  assertEquals(prefix, "sk_live_abcd");
+  assertEquals(prefix.length, 12);
 });

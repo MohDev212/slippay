@@ -14,7 +14,7 @@ and platform fee rate.
   "email": "operations@vortex.example",
   "stellar_address": "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
   "network": "testnet",
-  "api_key_prefix": "sk_live_e6f4a1c8",
+  "api_key_prefix": "sk_live_e6f4",
   "webhook_url": "https://vortex.example/webhooks/slippay",
   "platform_fee_bp": 100,
   "active": true,
@@ -30,7 +30,7 @@ and platform fee rate.
 | `email` | string | from Supabase user; not editable directly here |
 | `stellar_address` | string \| null | 56-char Stellar pubkey where USDC settles |
 | `network` | enum | `testnet` or `mainnet` |
-| `api_key_prefix` | string | first 16 chars of the key, for UI display |
+| `api_key_prefix` | string | first 12 chars of the key (`sk_live_` + 4 chars), display-only for dashboard identification and never used for authentication |
 | `webhook_url` | string \| null | where SlipPay POSTs events |
 | `platform_fee_bp` | int | platform fee in basis points (100 = 1%, max 1000 = 10%) |
 | `active` | bool | inactive merchants don't receive new orders |
