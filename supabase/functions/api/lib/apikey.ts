@@ -1,4 +1,4 @@
-import { API_KEY_PREFIX, API_KEY_BYTES } from "@slippay/shared";
+import { API_KEY_PREFIX, API_KEY_BYTES, bufToHex } from "@slippay/shared";
 
 // Audit-004 · C4 — API keys are hashed with HMAC-SHA-256 using a server-side
 // pepper, so a DB-only leak (Supabase breach, backup theft, support engineer
@@ -28,14 +28,10 @@ async function hmacKey(): Promise<CryptoKey> {
   return HMAC_KEY_CACHE;
 }
 
-function bufToHex(buf: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
 export function generateApiKey(): { plain: string } {
   const bytes = new Uint8Array(API_KEY_BYTES);
   crypto.getRandomValues(bytes);
-  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+  const hex = bufToHex(bytes);
   return { plain: API_KEY_PREFIX + hex };
 }
 

@@ -12,22 +12,12 @@
 // after a successful upsert so CriptoPix retries on transient failure.
 
 import { Hono, type Context } from "hono";
+import { b64url, b64urlDecode } from "@slippay/shared";
 import { upsertRampTxFromWebhook, type CnopWebhookBody } from "../lib/ramp/store.ts";
 
 const r = new Hono();
 const enc = new TextEncoder();
-
-function b64urlEncode(bytes: Uint8Array): string {
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function b64urlDecodeToString(s: string): string {
-  const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
-  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + pad;
-  return atob(b64);
-}
+const dec = new TextDecoder();
 
 /** Verify an HS256 JWT against `secret`. Returns the decoded payload or null. */
 async function verifyHs256(
@@ -45,9 +35,9 @@ async function verifyHs256(
     ["sign"],
   );
   const expected = await crypto.subtle.sign("HMAC", key, enc.encode(`${h}.${p}`));
-  if (b64urlEncode(new Uint8Array(expected)) !== sig) return null;
+  if (b64url(new Uint8Array(expected)) !== sig) return null;
   try {
-    return JSON.parse(b64urlDecodeToString(p)) as Record<string, unknown>;
+    return JSON.parse(dec.decode(b64urlDecode(p))) as Record<string, unknown>;
   } catch {
     return null;
   }
