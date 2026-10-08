@@ -18,7 +18,7 @@
 import type { Context, Next } from "hono";
 import { clientIp, type ConnInfo } from "../lib/client_ip.ts";
 
-interface Bucket {
+export interface Bucket {
   tokens: number;
   lastRefill: number; // ms epoch
 }
@@ -30,19 +30,48 @@ export interface LimiterConfig {
   key?: (c: Context) => string;
   /** Identifier for diagnostic 429 body. */
   scope?: string;
+  /** Maximum number of buckets tracked before LRU eviction. Defaults to 10,000. */
+  maxBuckets?: number;
 }
 
+export const DEFAULT_MAX_BUCKETS = 10_000;
+const SWEEP_INTERVAL_MS = 60_000;
+const BUCKET_TTL_MS = 5 * 60_000;
+
+// Module-level LRU map preserving insertion/access order.
 const buckets: Map<string, Bucket> = new Map();
-// Periodic cleanup so we don't leak buckets for unique IPs that never return.
 let lastSweep = Date.now();
+let sweepTimer: ReturnType<typeof setInterval> | null = null;
+
+export function sweepBuckets(ttlMs = BUCKET_TTL_MS) {
+  const now = Date.now();
+  lastSweep = now;
+  for (const [k, b] of buckets) {
+    if (now - b.lastRefill > ttlMs) {
+      buckets.delete(k);
+    }
+  }
+}
+
+export function ensureSweepTimer() {
+  if (sweepTimer === null && typeof setInterval !== "undefined") {
+    sweepTimer = setInterval(() => sweepBuckets(), SWEEP_INTERVAL_MS);
+    try {
+      if (typeof (sweepTimer as any)?.unref === "function") {
+        (sweepTimer as any).unref();
+      } else if (typeof (globalThis as any).Deno?.unrefTimer === "function") {
+        (globalThis as any).Deno.unrefTimer(sweepTimer);
+      }
+    } catch {
+      // ignore
+    }
+  }
+}
 
 function sweepIfDue() {
   const now = Date.now();
-  if (now - lastSweep < 60_000) return;
-  lastSweep = now;
-  for (const [k, b] of buckets) {
-    if (now - b.lastRefill > 5 * 60_000) buckets.delete(k);
-  }
+  if (now - lastSweep < SWEEP_INTERVAL_MS) return;
+  sweepBuckets();
 }
 
 // Audit-005 · H1 — derive the bucket key from the trusted connection IP, NOT
@@ -58,10 +87,43 @@ export function rateLimit(cfg: LimiterConfig) {
   const scope = cfg.scope ?? "default";
 
   return async (c: Context, next: Next) => {
+    ensureSweepTimer();
     sweepIfDue();
+
+    const maxBuckets = cfg.maxBuckets ?? (
+      typeof Deno !== "undefined" && Deno.env?.get("RATE_LIMIT_MAX_BUCKETS")
+        ? parseInt(Deno.env.get("RATE_LIMIT_MAX_BUCKETS")!) || DEFAULT_MAX_BUCKETS
+        : DEFAULT_MAX_BUCKETS
+    );
+
     const id = `${scope}:${keyFn(c)}`;
     const now = Date.now();
-    const bucket = buckets.get(id) ?? { tokens: capacity, lastRefill: now };
+
+    let bucket = buckets.get(id);
+    if (bucket) {
+      // Re-insert to refresh position to most-recently used (MRU)
+      buckets.delete(id);
+    } else {
+      // If at capacity, evict the least recently used (first in Map)
+      if (buckets.size >= maxBuckets) {
+        const oldestKey = buckets.keys().next().value;
+        if (oldestKey && oldestKey !== id) {
+          buckets.delete(oldestKey);
+        }
+      }
+
+      // If still at capacity (e.g. maxBuckets === 0), fail closed with 429
+      if (buckets.size >= maxBuckets) {
+        return c.json(
+          { error: "rate_limited", scope, reason: "capacity_exceeded", retry_after_sec: 1 },
+          429,
+          { "retry-after": "1" },
+        );
+      }
+
+      bucket = { tokens: capacity, lastRefill: now };
+    }
+
     const elapsedSec = (now - bucket.lastRefill) / 1000;
     bucket.tokens = Math.min(capacity, bucket.tokens + elapsedSec * refillPerSec);
     bucket.lastRefill = now;
@@ -75,6 +137,7 @@ export function rateLimit(cfg: LimiterConfig) {
         { "retry-after": String(retrySec) },
       );
     }
+
     bucket.tokens -= 1;
     buckets.set(id, bucket);
     await next();
@@ -91,4 +154,20 @@ export function merchantKey(c: Context): string {
 export function __resetBuckets() {
   buckets.clear();
   lastSweep = Date.now();
+  if (sweepTimer !== null) {
+    clearInterval(sweepTimer);
+    sweepTimer = null;
+  }
+}
+
+export function __getBucketCount(): number {
+  return buckets.size;
+}
+
+export function __hasBucket(id: string): boolean {
+  return buckets.has(id);
+}
+
+export function __getBucket(id: string): Bucket | undefined {
+  return buckets.get(id);
 }
