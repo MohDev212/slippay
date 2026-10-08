@@ -16,6 +16,7 @@ import { z } from "zod";
 import { rateLimit } from "../middleware/rate_limit.ts";
 import { FourPClient, FourPError } from "../lib/fourp/client.ts";
 import { getRampTx, saveRampTx } from "../lib/ramp/store.ts";
+import { isAllowedOrigin } from "@slippay/shared";
 
 const r = new Hono();
 
@@ -94,13 +95,12 @@ r.post("/webhook", async (c) => {
 // can't sit behind requireApiKeyOrJwt. The 4P x-api-key stays server-side; the
 // browser only sends the buyer's request. Origin allowlist + rate limit prevent
 // off-app abuse. Charges are self-paid in R$, so there is no fund-theft vector.
-const ALLOWED_ORIGINS_RE = /^https:\/\/(app\.)?slippay\.cc$|^http:\/\/(localhost|127\.0\.0\.1):5173$/;
 function originGate(c: Context, next: () => Promise<void>) {
   const cand = c.req.header("origin") ?? c.req.header("referer");
   if (!cand) return c.json({ error: "origin_required" }, 403);
   let o: string;
   try { o = new URL(cand).origin; } catch { return c.json({ error: "origin_not_allowed" }, 403); }
-  if (!ALLOWED_ORIGINS_RE.test(o)) return c.json({ error: "origin_not_allowed" }, 403);
+  if (!isAllowedOrigin(o)) return c.json({ error: "origin_not_allowed" }, 403);
   return next();
 }
 r.use("/quote", originGate, rateLimit({ capacity: 20, refillPerSec: 20 / 60, scope: "4p_quote" }));

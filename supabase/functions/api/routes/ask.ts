@@ -1,4 +1,5 @@
 import { Hono, type Context } from "hono";
+import { isAllowedOrigin } from "@slippay/shared";
 import { askSlippayStream } from "../lib/ask.ts";
 import { rateLimit } from "../middleware/rate_limit.ts";
 
@@ -11,7 +12,6 @@ const r = new Hono();
 //  3. Concurrency semaphore so a flash flood of valid IPs still can't OOM
 //     the container by spawning N concurrent subprocesses
 //  4. Question length cap (already present, kept)
-const ALLOWED_ORIGINS_RE = /^https:\/\/(app\.)?slippay\.cc$|^http:\/\/(localhost|127\.0\.0\.1):5173$/;
 const MAX_CONCURRENT_SUBPROCESSES = 4;
 let inFlight = 0;
 
@@ -80,7 +80,7 @@ r.post("/", async (c) => {
   } catch {
     return c.json({ error: "origin_not_allowed" }, 403);
   }
-  if (!ALLOWED_ORIGINS_RE.test(candidateOrigin)) {
+  if (!isAllowedOrigin(candidateOrigin)) {
     return c.json({ error: "origin_not_allowed" }, 403);
   }
 
