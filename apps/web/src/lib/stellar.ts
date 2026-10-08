@@ -119,13 +119,13 @@ export async function buildAtomicTx(args: BuildAtomicTxArgs): Promise<string> {
   const usdc = new Asset(USDC_ASSET_CODE, issuer);
 
   const account = new Account(args.buyerPublicKey, args.buyerSequence);
-  const memoBytes = Buffer.from(args.memo, "hex");
-  if (memoBytes.length !== 32) throw new Error("invalid_memo");
+  const memoHex = args.memo.startsWith("0x") ? args.memo.slice(2) : args.memo;
+  if (memoHex.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(memoHex)) throw new Error("invalid_memo");
 
   const tx = new TransactionBuilder(account, {
     fee: BASE_FEE,
     networkPassphrase: PASSPHRASES[args.network],
-    memo: Memo.hash(memoBytes),
+    memo: Memo.hash(memoHex),
     timebounds: { minTime: 0, maxTime: args.maxTime },
   })
     .addOperation(Operation.payment({
